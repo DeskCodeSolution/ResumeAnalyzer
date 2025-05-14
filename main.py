@@ -5,7 +5,7 @@ import json
 ## Streamlit App
 
 st.set_page_config(page_title="ATS Resume Scanner")
-st.header("ATS Tracking System")
+st.title("ATS Tracking System")
 input_text=st.text_area("Job Description: ",key="input")
 uploaded_file=st.file_uploader("Upload your resume(PDF)...",type=["pdf"])
 
@@ -47,25 +47,65 @@ your task is to evaluate the resume against the provided job description. give m
 the job description. First the output should come as percentage and then keywords missing and last final thoughts. 
 """
 
-input_prompt4 =""" You are an advanced resume parser. Analyze the resume text provided below and extract the following details accurately:
+input_prompt4 = """
+You are a professional-grade resume parser. Analyze the resume text provided below and extract the following details accurately
+there can be multiple work experiences so analyze whole text very carefully and return an array as output in the following format:
+if some of information is not present in the resume then return null in the output. do not make up the answer only answer from resume provided.
+and extract username of github and linkdin carefully it should be always accurate.
+if grade are in CGPA then mention CGPA in the grade field.
 
-Full Name
+Return the output in the following JSON format:
+{
+  "name": "<Full Name>",
+  "github": "<GitHub Profile or Username>",
+  "linkedin": "<LinkedIn Profile or Username>",
+  "email": "<Email Address>",
+  "contact": "<Contact Number>",
 
-GitHub Profile URL or Username
+  "total work experience":[
+    {
+      "company name": "<Company Name>",
+      "job title": "<Job Title>",
+      "start date": "<Start Date>",
+      "end date": "<End Date>"
+    },
+    {
+      "company name": "<Company Name>",
+      "job title": "<Job Title>",
+      "start date": "<Start Date>",
+      "end date": "<End Date>",
+    }
+  ],
+  "education":[
+    {
+      "qualification": "<Qualification >",
+      "institution": "<institute Or School Name",
+      "start_year": <Start Date>,
+      "end_year": <End Time>,
+      "grade": <grade in percentage or CGPA>
+    },
+    {
+      "qualification": "<Qualification >",
+      "institution": "<institute Or School Name",
+      "start_year": <Start Date>,
+      "end_year": <End Time>,
+      "grade": <grade in percentage or CGPA>
+    },
 
-LinkedIn Profile URL or Username
+  ]
+  "hobbies":[
+    "<Hobby 1>",
+    "<Hobby 2>",
+    "<Hobby 3>"
+  ],
+  "address": "<Address>",
+  "skills": ["<Skill 1>", "<Skill 2>", "..."]
+}
 
-Email Address
+if in the end date is present then write present in the end date
+and the make json format proper so that it can be parsed easily.
 
-Contact Number
-
-Total Work Experience (in years/months or date range)
-
-Address (full address or city/state if detailed address is unavailable)
-
-Skills (list of technical, professional, or soft skills)
-
-Return the output strictly in the following JSON format: """
+"""
 
 if submit1:
     if uploaded_file is not None:
@@ -101,33 +141,61 @@ elif submit3:
 elif submit4:
     if uploaded_file is not None:
         pdf_content=input_pdf_setup(uploaded_file)
+
         response=get_gemini_response(input_prompt4,pdf_content,input_text)
-        st.subheader("The Repsonse is")
+        st.header("The Repsonse is")
         
         response = response[7:]
         tick = response[-1]
         while(tick != '}'):
             response = response[:-1]
             tick = response[-1]
+        
         response = json.loads(response)
+        filename = ""
+        for i in response['name']:
+            if i !=" ":
+                filename+= i
+            else:
+                filename +="_"
+        with open(f"{filename}.json", "w") as outfile:
+            json.dump(response, outfile, indent=4)
         
-        
-        st.write(f"Full Name: {response['Full Name']}")
-        if response['GitHub Profile URL or Username'] != None:
-            st.write(f"GitHub Profile URL or Username: {response['GitHub Profile URL or Username']}")
-        if response['LinkedIn Profile URL or Username'] != None:
-            st.write(f"LinkedIn Profile URL or Username: {response['LinkedIn Profile URL or Username']}")
-        if response['Email Address'] != None:
-            st.write(f"Email Address: {response['Email Address']}")
-        if response['Contact Number'] != None:
-            st.write(f"Contact Number: {response['Contact Number']}")
-        if response['Total Work Experience (in years/months or date range)'] != None:
-            st.write(f"Total Work Experience: {response['Total Work Experience (in years/months or date range)']}")
-        if response['Address (full address or city/state if detailed address is unavailable)'] != None:
-            st.write(f"Address: {response['Address (full address or city/state if detailed address is unavailable)']}")
-        if response.get('Skills') and isinstance(response['Skills'], list):
-            st.write("Skills:")
-            for skill in response['Skills']:
+        st.write(f"Full Name: {response['name']}")
+        if response['github'] != None:
+            st.write(f"GitHub Profile URL or Username: {response['github']}")
+        if response['linkedin'] != None or response['linkedin'] != "None"   :
+            st.write(f"LinkedIn Profile URL or Username: {response['linkedin']}")
+        if response['email'] != None or response['email'] != "None":
+            st.write(f"Email Address: {response['email']}")
+        if response['contact'] != None or response['contact'] != "None":
+            st.write(f"Contact Number: {response['contact']}")
+        if response['address'] != None or response['address'] != "None":
+            st.write(f"Address: {response['address']}") 
+        if response['education'] != None or response['education'] != "None":
+            st.subheader("Education:")
+            for i in range(len(response['education'])):
+                st.write(f"Qualification: {response['education'][i]['qualification']}")
+                st.write(f"Institution: {response['education'][i]['institution']}")
+                st.write(f"Start Year: {response['education'][i]['start_year']}")
+                st.write(f"End Year: {response['education'][i]['end_year']}")
+                st.write(f"Grade: {response['education'][i]['grade']}")
+        if response['total work experience'] != None or response['total work experience'] != "None":
+            st.subheader("Work Experience:")
+            for i in range(len(response['total work experience'])):
+
+                st.write(f"Company Name: {response['total work experience'][i]['company name']}")
+                st.write(f"Job Title: {response['total work experience'][i]['job title']}")
+                st.write(f"Start Date: {response['total work experience'][i]['start date']}")
+                st.write(f"End Date: {response['total work experience'][i]['end date']}")
+        if response['skills'] != None or response['skills'] != "None":
+            st.subheader("Skills:")
+            for skill in response['skills']:
                 st.markdown(f"- {skill}")
+
+        if response['hobbies'] :
+            st.subheader("Hobbies:")
+            for i in range(len(response['hobbies'])):
+                st.markdown(f"Hobby: {response['hobbies'][i]}")
     else:
         st.write("Please upload the resume")
